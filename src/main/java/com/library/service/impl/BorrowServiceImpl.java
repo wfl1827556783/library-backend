@@ -10,11 +10,13 @@ import com.library.repository.UserRepository;
 import com.library.service.BorrowService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@Transactional
 public class BorrowServiceImpl implements BorrowService {
 
     @Autowired
@@ -26,10 +28,8 @@ public class BorrowServiceImpl implements BorrowService {
     @Autowired
     private BookRepository bookRepository;
 
-
     @Override
     public Borrow borrowBook(Long userId, Long bookId) {
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
 
@@ -38,6 +38,12 @@ public class BorrowServiceImpl implements BorrowService {
 
         if (book.getStock() <= 0) {
             throw new BusinessException("库存不足");
+        }
+
+        // 检查用户是否已经借阅了这本书且未归还
+        List<Borrow> existingBorrows = borrowRepository.findByUserAndBookAndReturnedFalse(user, book);
+        if (!existingBorrows.isEmpty()) {
+            throw new BusinessException("您已经借阅了这本书，请先归还");
         }
 
         // 库存 -1
@@ -55,9 +61,7 @@ public class BorrowServiceImpl implements BorrowService {
 
     @Override
     public Borrow returnBook(Long borrowId) {
-
-        Borrow record = borrowRepository.findById(borrowId)
-                .orElseThrow(() -> new BusinessException("借阅记录不存在"));
+        Borrow record = findById(borrowId);
 
         if (record.getReturned()) {
             throw new BusinessException("书籍已归还");
@@ -76,8 +80,19 @@ public class BorrowServiceImpl implements BorrowService {
 
     @Override
     public List<Borrow> findByUser(Long userId) {
-        return borrowRepository.findAll().stream()
-                .filter(b -> b.getUser().getId().equals(userId))
-                .toList();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException("用户不存在"));
+        return borrowRepository.findByUser(user);
+    }
+
+    @Override
+    public Borrow findById(Long id) {
+        return borrowRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("借阅记录不存在"));
+    }
+
+    @Override
+    public List<Borrow> findAll() {
+        return borrowRepository.findAll();
     }
 }

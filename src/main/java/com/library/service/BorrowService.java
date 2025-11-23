@@ -10,4 +10,8 @@ public interface BorrowService {
     Borrow returnBook(Long borrowId);
 
     List<Borrow> findByUser(Long userId);
+
+    Borrow findById(Long id);
+
+    List<Borrow> findAll();
 }

@@ -11,5 +11,7 @@ public interface CategoryService {
 
     void deleteCategory(Long id);
 
+    Category findById(Long id);
+
     List<Category> findAll();
 }

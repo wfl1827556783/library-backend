@@ -14,4 +14,8 @@ public interface BookService {
     Book findById(Long id);
 
     List<Book> findAll();
+
+    List<Book> findByCategory(Long categoryId);
+
+    List<Book> findByTitleContaining(String keyword);
 }
