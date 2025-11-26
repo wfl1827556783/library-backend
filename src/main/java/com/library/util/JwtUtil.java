@@ -1,8 +1,6 @@
 package com.library.util;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
@@ -21,9 +19,11 @@ public class JwtUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
 
-    // 不再在代码中使用明文默认值，优先从环境变量或外部配置注入
     @Value("${jwt.secret:}")
     private String secret;
+
+    // 当未通过配置或环境变量提供 secret 时回退的开发默认值（仅用于本地开发）
+    private static final String DEFAULT_SECRET = "library-management-system-secret-key-2024-very-long-secret-key-for-production-use-at-least-256-bits";
 
     @Value("${jwt.expiration:86400000}") // 24小时，单位：毫秒
     private Long expiration;
@@ -45,8 +45,7 @@ public class JwtUtil {
     private String createToken(Map<String, Object> claims, String subject) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
-
-        SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        SecretKey key = getSigningKey();
 
         return Jwts.builder()
                 .claims(claims)
@@ -62,21 +61,11 @@ public class JwtUtil {
      */
     public Claims getClaimsFromToken(String token) {
         try {
-            if (secret == null || secret.isEmpty()) {
-                logger.error("JWT secret is not configured. Set jwt.secret or environment variable JWT_SECRET.");
-                return null;
-            }
-            SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-            // 使用 parserBuilder 并解析为 Claims（兼容 jjwt 0.11+ / 0.12+）
-            return Jwts.builder().setSigningKey(key).build().parseClaimsJws(token).getBody();
-        } catch (ExpiredJwtException e) {
-            logger.warn("JWT token 已过期: {}", e.getMessage());
-            return null;
-        } catch (JwtException e) {
-            logger.warn("JWT 解析失败: {}", e.getMessage());
-            return null;
+            SecretKey key = getSigningKey();
+            // 使用与项目编译环境兼容的 JJWT API：parser() 返回一个 builder-like 对象，调用 build() 获取解析器
+            return Jwts.parser().setSigningKey(key).build().parseClaimsJws(token).getBody();
         } catch (Exception e) {
-            logger.error("Unexpected error when parsing JWT", e);
+            logger.warn("解析 JWT 失败: {}", e.getMessage());
             return null;
         }
     }
@@ -138,6 +127,27 @@ public class JwtUtil {
     public Date getExpirationDateFromToken(String token) {
         Claims claims = getClaimsFromToken(token);
         return claims != null ? claims.getExpiration() : null;
+    }
+
+    private SecretKey getSigningKey() {
+        String effective = secret;
+        if (effective == null || effective.isEmpty()) {
+            // 尝试从环境变量读取
+            String env = System.getenv("JWT_SECRET");
+            if (env != null && !env.isEmpty()) {
+                effective = env;
+            } else {
+                // 回退到开发默认值，记录警告
+                effective = DEFAULT_SECRET;
+                logger.warn("未配置 JWT secret，已使用开发默认 secret（仅用于本地开发），建议在运行时通过环境变量 JWT_SECRET 注入真实密钥");
+            }
+        }
+
+        byte[] keyBytes = effective.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException("JWT secret 太短，必须至少 32 字节（256 位）。请设置更长的 JWT_SECRET 或配置 jwt.secret。");
+        }
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 }
 

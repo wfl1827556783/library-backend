@@ -16,6 +16,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -94,5 +96,21 @@ public class GlobalExceptionHandler {
         }
         
         return Result.error(500, message);
+    }
+
+    // 处理权限不足（403）
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Result<?> handleAccessDenied(AccessDeniedException ex) {
+        logger.warn("Access denied: {}", ex.getMessage());
+        return Result.error(403, "无权限访问");
+    }
+
+    // 处理认证失败（401）
+    @ExceptionHandler(AuthenticationException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public Result<?> handleAuthenticationException(AuthenticationException ex) {
+        logger.warn("Authentication failed: {}", ex.getMessage());
+        return Result.error(401, "认证失败");
     }
 }

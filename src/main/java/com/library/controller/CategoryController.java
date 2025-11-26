@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,6 +22,7 @@ public class CategoryController {
     private CategoryService categoryService;
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<CategoryDTO> addCategory(@Valid @RequestBody CategoryDTO categoryDTO) {
         Category category = new Category();
         BeanUtils.copyProperties(categoryDTO, category);
@@ -29,8 +31,9 @@ public class CategoryController {
         return Result.success(result);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
-    public Result<CategoryDTO> updateCategory(@PathVariable Long id, @Valid @RequestBody CategoryDTO categoryDTO) {
+    public Result<CategoryDTO> updateCategory(@PathVariable("id") Long id, @Valid @RequestBody CategoryDTO categoryDTO) {
         Category category = new Category();
         BeanUtils.copyProperties(categoryDTO, category);
         category.setId(id);
@@ -39,14 +42,15 @@ public class CategoryController {
         return Result.success(result);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
-    public Result<?> deleteCategory(@PathVariable Long id) {
+    public Result<?> deleteCategory(@PathVariable("id") Long id) {
         categoryService.deleteCategory(id);
         return Result.success();
     }
 
     @GetMapping("/{id}")
-    public Result<CategoryDTO> getCategoryById(@PathVariable Long id) {
+    public Result<CategoryDTO> getCategoryById(@PathVariable("id") Long id) {
         Category category = categoryService.findById(id);
         CategoryDTO result = convertToDTO(category);
         return Result.success(result);

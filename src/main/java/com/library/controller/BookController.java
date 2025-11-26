@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,6 +27,7 @@ public class BookController {
     private CategoryRepository categoryRepository;
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<BookDTO> addBook(@Valid @RequestBody BookDTO bookDTO) {
         Book book = convertToEntity(bookDTO);
         Book savedBook = bookService.addBook(book);
@@ -33,8 +35,9 @@ public class BookController {
         return Result.success(result);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
-    public Result<BookDTO> updateBook(@PathVariable Long id, @Valid @RequestBody BookDTO bookDTO) {
+    public Result<BookDTO> updateBook(@PathVariable("id") Long id, @Valid @RequestBody BookDTO bookDTO) {
         Book book = convertToEntity(bookDTO);
         book.setId(id);
         Book updatedBook = bookService.updateBook(book);
@@ -42,22 +45,23 @@ public class BookController {
         return Result.success(result);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
-    public Result<?> deleteBook(@PathVariable Long id) {
+    public Result<?> deleteBook(@PathVariable("id") Long id) {
         bookService.deleteBook(id);
         return Result.success();
     }
 
     @GetMapping("/{id}")
-    public Result<BookDTO> getBookById(@PathVariable Long id) {
+    public Result<BookDTO> getBookById(@PathVariable("id") Long id) {
         Book book = bookService.findById(id);
         BookDTO result = convertToDTO(book);
         return Result.success(result);
     }
 
     @GetMapping
-    public Result<List<BookDTO>> getAllBooks(@RequestParam(required = false) Long categoryId,
-                                             @RequestParam(required = false) String keyword) {
+    public Result<List<BookDTO>> getAllBooks(@RequestParam(value = "categoryId", required = false) Long categoryId,
+                                             @RequestParam(value = "keyword", required = false) String keyword) {
         List<Book> books;
         if (categoryId != null) {
             books = bookService.findByCategory(categoryId);
